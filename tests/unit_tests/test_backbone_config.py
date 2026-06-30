@@ -40,6 +40,7 @@ memory:
     assert mod.counselor_api_key == "cok"
     assert mod.emotion_api_key == "ek"
     from anna_agent.common.registry import registry
+
     cfg = registry.get("anna_engine_config")
     assert cfg.base_url == "https://example.com"
     assert cfg.complaint_api_key == "ck"

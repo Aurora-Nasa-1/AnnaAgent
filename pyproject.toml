@@ -8,7 +8,6 @@ dependencies = [
     "openai",
     "pandas",
     "lancedb>=0.25.3,<0.26",
-    "huggingface-hub",
     "rich",
     "typer",
     "environs",
@@ -21,11 +20,6 @@ dependencies = [
 Documentation = "https://sci-m-wang.github.io/AnnaAgent/"
 Repository = "https://github.com/sci-m-wang/AnnaAgent"
 Issues = "https://github.com/sci-m-wang/AnnaAgent/issues"
-
-[project.optional-dependencies]
-deploy = [
-    "vllm>=0.6.4,<1; platform_system == 'Linux' and python_version < '3.13'",
-]
 
 [project.scripts]
 anna = "anna_agent.cli:app"
@@ -100,7 +94,6 @@ anna_agent = [
     "figure/*.md",
     "figure/*.png",
     "scales/*.json",
-    "server/*.sh",
 ]
 
 [tool.pytest.ini_options]

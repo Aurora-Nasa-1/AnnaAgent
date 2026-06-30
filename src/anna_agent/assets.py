@@ -123,26 +123,6 @@ def _pull_asset(
             ]
         filename = source.get("filename") or Path(url).name
         return [_download(asset["name"], url, target / filename, force)]
-    if source_type == "huggingface":
-        repo_id = source.get("repo_id", "")
-        revision = source.get("revision", "main")
-        if not repo_id:
-            return [
-                {"name": asset["name"], "status": "unconfigured", "path": str(target)}
-            ]
-        if target.exists() and any(target.iterdir()) and not force:
-            return [{"name": asset["name"], "status": "exists", "path": str(target)}]
-        from huggingface_hub import snapshot_download
-
-        snapshot_download(
-            repo_id=repo_id,
-            repo_type=source.get("repo_type"),
-            revision=revision,
-            local_dir=str(target),
-            allow_patterns=source.get("allow_patterns"),
-            ignore_patterns=source.get("ignore_patterns"),
-        )
-        return [{"name": asset["name"], "status": "downloaded", "path": str(target)}]
     return [
         {
             "name": asset.get("name", "asset"),

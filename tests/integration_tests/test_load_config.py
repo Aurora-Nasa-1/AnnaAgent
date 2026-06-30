@@ -193,9 +193,7 @@ servers:
     assert config.counselor_base_url == "https://mimo.example.com/v1"
 
 
-def test_load_config_preserves_explicit_counselor_endpoint(
-    tmp_path: Path, monkeypatch
-):
+def test_load_config_preserves_explicit_counselor_endpoint(tmp_path: Path, monkeypatch):
     cfg = tmp_path / "settings.yaml"
     cfg.write_text(
         """

@@ -14,6 +14,7 @@ def _extract_answers(response, expected_length, default="B"):
         return answers
     return [default] * expected_length
 
+
 tools = [
     {
         "type": "function",

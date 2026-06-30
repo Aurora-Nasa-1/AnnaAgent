@@ -47,7 +47,7 @@ def switch_complaint(chain, index, conversation):
             [f"{conv['role']}: {conv['content']}" for conv in conversation]
         )
         response = client.chat.completions.create(
-            model=registry.get("anna_engine_config").model_name,  
+            model=registry.get("anna_engine_config").model_name,
             messages=[
                 {
                     "role": "user",
