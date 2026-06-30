@@ -41,6 +41,14 @@ def gen_complaint_chain(profile):
     event = event_trigger(profile)
     client = get_complaint_client()
     config = registry.get("anna_engine_config")
+    kwargs = {}
+    if not config.complaint_use_sft_model:
+        kwargs["tools"] = tools
+        kwargs["tool_choice"] = {
+            "type": "function",
+            "function": {"name": "generate_complaint_chain"},
+        }
+
     response = client.chat.completions.create(
         model=config.active_complaint_model_name,
         messages=[
@@ -49,11 +57,7 @@ def gen_complaint_chain(profile):
                 "content": f"### 任务\n根据患者情况及近期遭遇事件生成患者的主诉认知变化链。请注意，事件可能与患者信息冲突，如果发生这种情况，以患者的信息为准。\n{patient_info}\n### 近期遭遇事件\n{event}",
             }
         ],
-        tools=tools,
-        tool_choice={
-            "type": "function",
-            "function": {"name": "generate_complaint_chain"},
-        },
+        **kwargs,
     )
     args = extract_tool_call_arguments(response)
     chain = args.get("chain") if args else None

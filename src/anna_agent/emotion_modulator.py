@@ -64,6 +64,11 @@ def emotion_inferencer(profile, conversation):
         [f"{conv['role']}: {conv['content']}" for conv in conversation]
     )
     config = registry.get("anna_engine_config")
+    kwargs = {}
+    if not config.emotion_use_sft_model:
+        kwargs["tools"] = tools
+        kwargs["tool_choice"] = {"type": "function", "function": {"name": "emotion_inference"}}
+
     response = client.chat.completions.create(
         model=config.active_emotion_model_name,
         messages=[
@@ -72,8 +77,7 @@ def emotion_inferencer(profile, conversation):
                 "content": f"### 任务\n根据患者情况及咨访对话历史记录推测患者下一句话最可能的情绪。\n{patient_info}\n### 对话记录\n{dialogue_history}",
             }
         ],
-        tools=tools,
-        tool_choice={"type": "function", "function": {"name": "emotion_inference"}},
+        **kwargs,
     )
     args = extract_tool_call_arguments(response)
     emotion = args.get("emotion") if args else None
