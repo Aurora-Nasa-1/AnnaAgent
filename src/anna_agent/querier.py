@@ -87,7 +87,7 @@ def query(utterance, conversations, scales):
             }
         ],
         tools=tools,
-        tool_choice={"type": "function", "function": {"name": "search_knowledge"}}
+        tool_choice={"type": "function", "function": {"name": "search_knowledge"}},
     )
     logger.debug("knowledge response: %s", response)
     # 提取结构化知识字段

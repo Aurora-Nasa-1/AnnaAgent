@@ -19,6 +19,7 @@ def _fallback_scale_changes(scale_name, previous_answers, current_answers):
         for index, _ in enumerate(zip(previous_answers, current_answers), start=1)
     ]
 
+
 tools = [
     {
         "type": "function",
@@ -61,17 +62,23 @@ tools = [
 def analyzing_changes(scales):
     client = get_counselor_client()
     # 导入量表及问题
-    with importlib.resources.files("anna_agent.scales").joinpath("bdi.json").open(
-        "r", encoding="utf-8"
-    ) as f:
+    with (
+        importlib.resources.files("anna_agent.scales")
+        .joinpath("bdi.json")
+        .open("r", encoding="utf-8") as f
+    ):
         bdi_scale = json.load(f)
-    with importlib.resources.files("anna_agent.scales").joinpath("ghq-28.json").open(
-        "r", encoding="utf-8"
-    ) as f:
+    with (
+        importlib.resources.files("anna_agent.scales")
+        .joinpath("ghq-28.json")
+        .open("r", encoding="utf-8") as f
+    ):
         ghq_scale = json.load(f)
-    with importlib.resources.files("anna_agent.scales").joinpath("sass.json").open(
-        "r", encoding="utf-8"
-    ) as f:
+    with (
+        importlib.resources.files("anna_agent.scales")
+        .joinpath("sass.json")
+        .open("r", encoding="utf-8") as f
+    ):
         sass_scale = json.load(f)
     messages = [
         {

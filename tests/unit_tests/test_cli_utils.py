@@ -36,9 +36,7 @@ def test_load_seeker_data_yaml_nested(tmp_path: Path) -> None:
                 "interactive": {
                     "portrait": {"age": "20"},
                     "report": {"x": 1},
-                    "previous_conversations": [
-                        {"role": "a", "content": "b"}
-                    ],
+                    "previous_conversations": [{"role": "a", "content": "b"}],
                 }
             }
         ),

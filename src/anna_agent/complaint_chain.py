@@ -3,7 +3,6 @@ from .common.registry import registry
 from .common.tool_calls import extract_tool_call_arguments
 from .event_trigger import event_trigger
 
-
 tools = [
     {
         "type": "function",
@@ -33,7 +32,6 @@ tools = [
         },
     }
 ]
-
 
 
 def gen_complaint_chain(profile):

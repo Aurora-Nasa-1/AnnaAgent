@@ -49,9 +49,7 @@ def _load_dotenv(config_path: Path | str) -> None:
 def _get_config_path(root_dir: Path) -> Path:
     config_path = _search_for_config_in_root_dir(root_dir)
     if not config_path:
-        raise FileNotFoundError(
-            f"Config file not found in root directory: {root_dir}"
-        )
+        raise FileNotFoundError(f"Config file not found in root directory: {root_dir}")
     return config_path
 
 
@@ -65,9 +63,7 @@ def _apply_overrides(data: dict[str, Any], overrides: dict[str, Any]) -> None:
             target_obj = target.get(k, {})
             if not isinstance(target_obj, dict):
                 message = f"data[{current_path}] is not a dict"
-                raise TypeError(
-                    f"Cannot override non-dict value: {message}."
-                )
+                raise TypeError(f"Cannot override non-dict value: {message}.")
             target[k] = target_obj
             target = target[k]
         target[keys[-1]] = value

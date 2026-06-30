@@ -1,9 +1,9 @@
 from random import randint
-from .emotion_pertuber import perturb_state
+
 from .backbone import get_emotion_client
 from .common.registry import registry
 from .common.tool_calls import extract_tool_call_arguments
-
+from .emotion_pertuber import perturb_state
 
 tools = [
     {
@@ -56,7 +56,6 @@ tools = [
 ]
 
 
-
 def emotion_inferencer(profile, conversation):
     client = get_emotion_client()
     patient_info = f"### 患者信息\n年龄：{profile['age']}\n性别：{profile['gender']}\n职业：{profile['occupation']}\n婚姻状况：{profile['martial_status']}\n症状：{profile['symptoms']}"
@@ -67,7 +66,10 @@ def emotion_inferencer(profile, conversation):
     kwargs = {}
     if not config.emotion_use_sft_model:
         kwargs["tools"] = tools
-        kwargs["tool_choice"] = {"type": "function", "function": {"name": "emotion_inference"}}
+        kwargs["tool_choice"] = {
+            "type": "function",
+            "function": {"name": "emotion_inference"},
+        }
 
     response = client.chat.completions.create(
         model=config.active_emotion_model_name,

@@ -1,10 +1,11 @@
-import pandas as pd
 from pathlib import Path
 from random import choice
+
+import pandas as pd
+
 from .backbone import get_counselor_client
 from .common.registry import registry
 from .common.tool_calls import extract_tool_call_arguments
-
 
 _data_dir = Path(__file__).resolve().parent / "datasets"
 events = pd.read_csv(_data_dir / "cbt-triggering-events.csv", header=0)

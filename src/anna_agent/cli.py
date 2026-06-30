@@ -30,15 +30,6 @@ from .case_data import (
 from .common.registry import registry
 from .diagnostics import run_doctor
 from .memory import LanceMemoryStore
-from .model_services import (
-    configure_sft_endpoint,
-    deploy_env_status,
-    deploy_vllm_service,
-    expand_targets,
-    service_status,
-    set_sft_mode,
-    setup_deploy_env,
-)
 from .runtime import (
     FrozenPromptSession,
     append_jsonl,
@@ -69,8 +60,6 @@ test_app = typer.Typer(help="Run connectivity and smoke tests")
 data_app = typer.Typer(help="Validate and prepare case data")
 memory_app = typer.Typer(help="Manage LanceDB long-term memory")
 initialize_app = typer.Typer(help="Create or inspect initialization states")
-models_app = typer.Typer(help="Configure or deploy SFT model services")
-models_env_app = typer.Typer(help="Manage workspace deploy environments")
 run_app = typer.Typer(help="Run batch experiments")
 logs_app = typer.Typer(help="Inspect local run logs")
 cache_app = typer.Typer(help="Inspect or clean local caches")
@@ -83,8 +72,6 @@ app.add_typer(data_app, name="data")
 app.add_typer(memory_app, name="memory")
 app.add_typer(initialize_app, name="init")
 app.add_typer(initialize_app, name="initialize", hidden=True)
-app.add_typer(models_app, name="models")
-models_app.add_typer(models_env_app, name="env")
 app.add_typer(run_app, name="run")
 app.add_typer(logs_app, name="logs")
 app.add_typer(cache_app, name="cache")
@@ -196,23 +183,6 @@ def _render_debug_context(seeker: Any) -> None:
     console.print(Panel(table, title="本轮内部状态", border_style="magenta"))
 
 
-def _print_deploy_env_status(status: dict[str, Any]) -> None:
-    table = Table(title="Workspace Deploy Environment")
-    table.add_column("Field")
-    table.add_column("Value", overflow="fold")
-    for key in [
-        "path",
-        "exists",
-        "python",
-        "python_exists",
-        "vllm",
-        "vllm_exists",
-        "available",
-    ]:
-        table.add_row(key, str(status.get(key, "")))
-    console.print(table)
-
-
 def _iter_exception_chain(err: BaseException):
     current: BaseException | None = err
     while current is not None:
@@ -288,8 +258,9 @@ def _print_model_connection_help(workspace: Path, err: BaseException) -> None:
         "Run [bold]anna doctor --workspace {workspace}[/bold] and "
         "[bold]anna models status --workspace {workspace}[/bold]. If you use "
         "local SFT models, rerun [bold]anna models deploy --wait-timeout 900 "
-        "--workspace {workspace}[/bold] and inspect logs/services/*.log."
-        .format(workspace=workspace)
+        "--workspace {workspace}[/bold] and inspect logs/services/*.log.".format(
+            workspace=workspace
+        )
     )
 
 
@@ -479,39 +450,10 @@ def doctor(
 def create_workspace(
     target: Path = typer.Argument(Path("anna-workspace"), help="Workspace directory."),
     force: bool = typer.Option(False, "--force", help="Overwrite generated files."),
-    deploy_env: bool = typer.Option(
-        False,
-        "--deploy-env",
-        help="Also create a workspace vLLM deployment environment.",
-    ),
-    deploy_python: str = typer.Option(
-        "3.12",
-        "--deploy-python",
-        help="Python version used for the workspace deployment environment.",
-    ),
-    deploy_force: bool = typer.Option(
-        False,
-        "--deploy-force",
-        help="Recreate the workspace deployment environment if it exists.",
-    ),
 ) -> None:
     initialize_workspace(target, force=force)
     console.print(f"[green]Workspace created:[/green] {target}")
     _render_research_callout()
-    if deploy_env:
-        try:
-            status = setup_deploy_env(
-                target,
-                python=deploy_python,
-                force=deploy_force,
-            )
-        except Exception as err:
-            console.print(f"[red]Deploy environment setup failed:[/red] {err}")
-            raise typer.Exit(code=1) from None
-        console.print(
-            f"[green]Deploy environment ready:[/green] {status['path']}"
-        )
-        console.print(f"vLLM command: {status['vllm']}")
 
 
 @assets_app.command("list")
@@ -926,265 +868,6 @@ def initialize_from_prompt(
 ) -> None:
     state = load_state(state_file)
     console.print(json.dumps(state_summary(state), ensure_ascii=False, indent=2))
-
-
-@models_app.command("use-base")
-def models_use_base(
-    target: str = typer.Option("all", help="complaint, emotion, or all."),
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-) -> None:
-    changed = set_sft_mode(workspace, target=target, use_sft=False)
-    console.print(f"[green]Using base model for:[/green] {', '.join(changed)}")
-    console.print(
-        f"Run [bold]anna test model --workspace {workspace}[/bold] before chat."
-    )
-
-
-@models_app.command("use-sft")
-def models_use_sft(
-    target: str = typer.Option("all", help="complaint, emotion, or all."),
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-) -> None:
-    changed = set_sft_mode(workspace, target=target, use_sft=True)
-    console.print(f"[green]Using SFT model for:[/green] {', '.join(changed)}")
-
-
-@models_app.command("configure")
-def models_configure(
-    target: str = typer.Option(..., help="complaint, emotion, or all."),
-    base_url: str = typer.Option(..., help="OpenAI-compatible endpoint /v1 URL."),
-    model_name: str = typer.Option(..., help="Served model name."),
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-    api_key: str | None = typer.Option(
-        None, help="API key. Prompts hidden if omitted."
-    ),
-    use_sft: bool = typer.Option(True, "--use-sft/--no-use-sft"),
-) -> None:
-    secret = api_key
-    if secret is None:
-        secret = typer.prompt(
-            "SFT endpoint API key (leave blank to keep current)",
-            default="",
-            hide_input=True,
-            show_default=False,
-        )
-    changed = configure_sft_endpoint(
-        workspace,
-        target=target,
-        base_url=base_url,
-        model_name=model_name,
-        api_key=secret or None,
-        use_sft=use_sft,
-    )
-    console.print(f"[green]Configured SFT endpoint for:[/green] {', '.join(changed)}")
-
-
-@models_env_app.command("setup")
-def models_env_setup(
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-    python: str = typer.Option(
-        "3.12",
-        "--python",
-        help="Python version used for the workspace deployment environment.",
-    ),
-    force: bool = typer.Option(
-        False, "--force", help="Recreate the workspace deployment environment."
-    ),
-    uv_command: str = typer.Option(
-        "uv", "--uv-command", help="uv executable path or name."
-    ),
-) -> None:
-    try:
-        status = setup_deploy_env(
-            workspace,
-            python=python,
-            force=force,
-            uv_command=uv_command,
-        )
-    except Exception as err:
-        console.print(f"[red]Deploy environment setup failed:[/red] {err}")
-        raise typer.Exit(code=1) from None
-    console.print(f"[green]Deploy environment ready:[/green] {status['path']}")
-    _print_deploy_env_status(status)
-
-
-@models_env_app.command("status")
-def models_env_status(
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-) -> None:
-    _print_deploy_env_status(deploy_env_status(workspace))
-
-
-@models_app.command("deploy")
-def models_deploy(
-    target: str = typer.Option(..., help="complaint, emotion, or all."),
-    backend: str = typer.Option("vllm", help="Deployment backend. Currently: vllm."),
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-    manifest: Path | None = typer.Option(
-        None,
-        "--manifest",
-        help="Path to an asset manifest JSON file.",
-        resolve_path=True,
-    ),
-    model_path: Path | None = typer.Option(
-        None, help="Local model path. Defaults to asset path."
-    ),
-    vllm_command: str = typer.Option(
-        "vllm",
-        "--vllm-command",
-        help="vLLM executable or command prefix, e.g. /path/to/vllm.",
-    ),
-    host: str = typer.Option("127.0.0.1", help="vLLM bind host."),
-    public_host: str = typer.Option("127.0.0.1", help="Host written to settings.yaml."),
-    port: int | None = typer.Option(None, help="Service port. Defaults by target."),
-    api_key: str | None = typer.Option(None, help="API key for vLLM service."),
-    model_name: str | None = typer.Option(None, help="Served model name."),
-    gpu: str | None = typer.Option(
-        None, help="CUDA_VISIBLE_DEVICES value, e.g. 0, 1, or 0,1."
-    ),
-    cuda_home: Path | None = typer.Option(
-        None,
-        "--cuda-home",
-        help="CUDA toolkit root containing bin/nvcc. Auto-detected when omitted.",
-        resolve_path=True,
-    ),
-    gpu_memory_utilization: float | None = typer.Option(
-        None, help="vLLM GPU memory fraction."
-    ),
-    max_model_len: int | None = typer.Option(
-        None, help="Override vLLM max model length."
-    ),
-    pull: bool = typer.Option(
-        True, "--download/--no-download", help="Download default asset if missing."
-    ),
-    background: bool = typer.Option(True, "--background/--foreground"),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Print command without starting vLLM."
-    ),
-    wait_timeout: int = typer.Option(
-        600,
-        "--wait-timeout",
-        help="Seconds to wait for local vLLM /v1/models readiness.",
-    ),
-    extra_arg: list[str] | None = typer.Option(
-        None, "--extra-arg", help="Extra vLLM arg. Repeatable."
-    ),
-) -> None:
-    if backend != "vllm":
-        raise typer.BadParameter("Only backend='vllm' is currently supported")
-    if target == "all" and any([model_path, port, model_name]):
-        raise typer.BadParameter(
-            "When --target all is used, omit --model-path, --port and "
-            "--model-name so each service can use its own defaults."
-        )
-    secret = api_key
-    if secret is None:
-        secret = (
-            typer.prompt(
-                "vLLM API key (leave blank for target default)",
-                default="",
-                hide_input=True,
-                show_default=False,
-            )
-            or None
-        )
-    for item_target in expand_targets(target):
-        progress_secrets = [secret] if secret else []
-        wait_progress_callback = None
-        if not dry_run and background:
-
-            def wait_progress_callback(
-                info: dict[str, Any], item_target: str = item_target
-            ) -> None:
-                _print_deploy_wait_progress(
-                    item_target,
-                    info,
-                    progress_secrets,
-                )
-
-        def gpu_preflight_callback(
-            info: dict[str, Any], item_target: str = item_target
-        ) -> None:
-            _print_gpu_preflight(item_target, info)
-
-        def cuda_preflight_callback(
-            info: dict[str, Any], item_target: str = item_target
-        ) -> None:
-            _print_cuda_preflight(item_target, info)
-
-        def build_tool_preflight_callback(
-            info: dict[str, Any], item_target: str = item_target
-        ) -> None:
-            _print_build_tool_preflight(item_target, info)
-
-        try:
-            result = deploy_vllm_service(
-                workspace,
-                target=item_target,
-                model_path=model_path,
-                manifest_file=manifest,
-                vllm_command=vllm_command,
-                host=host,
-                public_host=public_host,
-                port=port,
-                api_key=secret,
-                model_name=model_name,
-                gpu=gpu,
-                cuda_home=cuda_home,
-                gpu_memory_utilization=gpu_memory_utilization,
-                max_model_len=max_model_len,
-                pull=pull,
-                background=background,
-                dry_run=dry_run,
-                wait_timeout=wait_timeout,
-                wait_progress_callback=wait_progress_callback,
-                gpu_preflight_callback=gpu_preflight_callback,
-                cuda_preflight_callback=cuda_preflight_callback,
-                build_tool_preflight_callback=build_tool_preflight_callback,
-                extra_args=extra_arg,
-            )
-        except RuntimeError as err:
-            console.print(f"[red]Error:[/red] {escape(str(err))}")
-            raise typer.Exit(code=1) from None
-        console.print(
-            _redacted_command(
-                result["command"],
-                cuda_visible_devices=result.get("cuda_visible_devices", ""),
-                cuda_home=result.get("cuda_home", ""),
-                cuda_module=result.get("cuda_module", ""),
-            )
-        )
-        if dry_run:
-            continue
-        console.print(
-            f"[green]Deployed {item_target} SFT service[/green] "
-            f"pid={result['pid']} base_url={result['base_url']}"
-        )
-    if dry_run:
-        console.print("[yellow]Dry run only. Configuration was not changed.[/yellow]")
-
-
-@models_app.command("status")
-def models_status(
-    workspace: Path = typer.Option(Path(), "--workspace", "--root", resolve_path=True),
-) -> None:
-    table = Table(title="SFT Model Services")
-    table.add_column("Target")
-    table.add_column("Use SFT")
-    table.add_column("Model")
-    table.add_column("Base URL")
-    table.add_column("PID")
-    table.add_column("Log")
-    for item in service_status(workspace):
-        table.add_row(
-            item["target"],
-            str(item["use_sft"]),
-            item["model_name"],
-            item["base_url"],
-            item["pid"],
-            item["log"],
-        )
-    console.print(table)
 
 
 @app.command("chat")

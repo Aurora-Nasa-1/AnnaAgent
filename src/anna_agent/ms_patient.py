@@ -62,9 +62,9 @@ class MsPatient:
         self._report_progress("style", "Analyzing seeker speaking style")
         self.style = analyze_style(self.portrait, self.previous_conversations)
         self.configuration["style"] = self.style
-        self.configuration[
-            "status"
-        ] = ""  # 先置状态为空，后续会根据量表分析结果进行更新
+        self.configuration["status"] = (
+            ""  # 先置状态为空，后续会根据量表分析结果进行更新
+        )
         seeker_utterances = [
             utterance["content"]
             for utterance in self.previous_conversations

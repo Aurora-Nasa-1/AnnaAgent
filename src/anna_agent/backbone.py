@@ -1,12 +1,12 @@
 """Load base OpenAI configuration for the OpenAI clients."""
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 from openai import OpenAI
 
-from .config import AnnaEngineConfig, load_config
 from .common.registry import registry
+from .config import AnnaEngineConfig, load_config
 
 
 def _load_engine_config(workspace: Path | None = None) -> AnnaEngineConfig:
@@ -19,7 +19,9 @@ def _load_engine_config(workspace: Path | None = None) -> AnnaEngineConfig:
     """
 
     root = Path(
-        workspace if workspace is not None else os.getenv("ANNA_AGENT_WORKSPACE", Path.cwd())
+        workspace
+        if workspace is not None
+        else os.getenv("ANNA_AGENT_WORKSPACE", Path.cwd())
     )
     try:
         return load_config(root)
@@ -30,7 +32,11 @@ def _load_engine_config(workspace: Path | None = None) -> AnnaEngineConfig:
 def configure(workspace: Path | None = None) -> None:
     """(Re)load configuration from ``workspace`` and update globals."""
 
-    root = Path(workspace if workspace is not None else os.getenv("ANNA_AGENT_WORKSPACE", Path.cwd()))
+    root = Path(
+        workspace
+        if workspace is not None
+        else os.getenv("ANNA_AGENT_WORKSPACE", Path.cwd())
+    )
     cfg = _load_engine_config(workspace)
     # Register configuration for global access
     registry.register("anna_engine_config", cfg)
